@@ -21,7 +21,7 @@ app = Flask(__name__)
 def index():
     return "<h1>Бот работает! Сервер активен.</h1><p>Добавь эту ссылку в UptimeRobot.</p>"
 
-# --- БАЗА ПЕРСОНАЖЕЙ ---
+# --- БАЗА ПЕРСОНАЖЕЙ (Добавлены все недостающие бойцы) ---
 brawlers = {
     "shelly": {"name": "Шелли 🔫", "photo": "https://static.wikia.nocookie.net/brawlstars/images/0/08/Shelly_Skin-Default.png"},
     "colt": {"name": "Кольт 🎯", "photo": "https://static.wikia.nocookie.net/brawlstars/images/7/7b/Colt_Skin-Default.png"},
@@ -47,7 +47,28 @@ brawlers = {
     "rt": {"name": "R-T 🖥️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/0/06/RT_Skin-Default.png"},
     "willow": {"name": "Виллоу 🐸", "photo": "https://static.wikia.nocookie.net/brawlstars/images/8/83/Willow_Skin-Default.png"},
     "amber": {"name": "Амбер 🔥", "photo": "https://static.wikia.nocookie.net/brawlstars/images/8/85/Amber_Skin-Default.png"},
-    "gale": {"name": "Гэйл ❄️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/2/23/Gale_Skin-Default.png"}
+    "gale": {"name": "Гэйл ❄️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/2/23/Gale_Skin-Default.png"},
+    # Новые добавленные бойцы, чтобы игра не ломалась:
+    "bull": {"name": "Булл 🐂", "photo": "https://static.wikia.nocookie.net/brawlstars/images/0/07/Bull_Skin-Default.png"},
+    "sprout": {"name": "Спраут 🌱", "photo": "https://static.wikia.nocookie.net/brawlstars/images/1/10/Sprout_Skin-Default.png"},
+    "emz": {"name": "Эмз 📱", "photo": "https://static.wikia.nocookie.net/brawlstars/images/0/07/Emz_Skin-Default.png"},
+    "sandy": {"name": "Сэнди 💤", "photo": "https://static.wikia.nocookie.net/brawlstars/images/8/87/Sandy_Skin-Default.png"},
+    "jacky": {"name": "Джеки 🛠️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/8/89/Jacky_Skin-Default.png"},
+    "8bit": {"name": "8-БИТ 🕹️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/5/52/8-Bit_Skin-Default.png"},
+    "pam": {"name": "Пэм 🔧", "photo": "https://static.wikia.nocookie.net/brawlstars/images/2/22/Pam_Skin-Default.png"},
+    "ash": {"name": "Эш 🗑️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/3/36/Ash_Skin-Default.png"},
+    "meg": {"name": "Мэг 🤖", "photo": "https://static.wikia.nocookie.net/brawlstars/images/1/19/Meg_Skin-Default.png"},
+    "buster": {"name": "Бастер 📽️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/a/ab/Buster_Skin-Default.png"},
+    "tick": {"name": "Тик 💣", "photo": "https://static.wikia.nocookie.net/brawlstars/images/1/13/Tick_Skin-Default.png"},
+    "lou": {"name": "Лу 🍦", "photo": "https://static.wikia.nocookie.net/brawlstars/images/7/77/Lou_Skin-Default.png"},
+    "rosa": {"name": "Роза 🥊", "photo": "https://static.wikia.nocookie.net/brawlstars/images/4/4b/Rosa_Skin-Default.png"},
+    "bea": {"name": "Беа 🐝", "photo": "https://static.wikia.nocookie.net/brawlstars/images/2/25/Bea_Skin-Default.png"},
+    "byron": {"name": "Байрон 🐍", "photo": "https://static.wikia.nocookie.net/brawlstars/images/6/60/Byron_Skin-Default.png"},
+    "grom": {"name": "Гром 🏰", "photo": "https://static.wikia.nocookie.net/brawlstars/images/b/be/Grom_Skin-Default.png"},
+    "nita": {"name": "Нита 🐻", "photo": "https://static.wikia.nocookie.net/brawlstars/images/6/69/Nita_Skin-Default.png"},
+    "penny": {"name": "Пенни 🏴‍☠️", "photo": "https://static.wikia.nocookie.net/brawlstars/images/a/a2/Penny_Skin-Default.png"},
+    "mr_p": {"name": "Мистер Пи 🐧", "photo": "https://static.wikia.nocookie.net/brawlstars/images/8/87/Mr._P_Skin-Default.png"},
+    "jessie": {"name": "Джесси 🐶", "photo": "https://static.wikia.nocookie.net/brawlstars/images/7/76/Jessie_Skin-Default.png"}
 }
 
 # --- 20 ВОПРОСОВ ---
@@ -154,7 +175,7 @@ questions = [
         {"text": "Let's go get 'em!", "brawler": ["shelly", "colt", "max"]}]}
 ]
 
-# НОВАЯ СИСТЕМА СОХРАНЕНИЯ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+# СИСТЕМА СОХРАНЕНИЯ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
 user_sessions = {}
 
 def load_stats():
@@ -174,7 +195,7 @@ def save_stats(stats):
 def update_global_stats(brawler_id):
     stats = load_stats()
     stats[brawler_id] = stats.get(brawler_id, 0) + 1
-    stats["total_plays"] += 1
+    stats["total_plays"] = stats.get("total_plays", 0) + 1
     save_stats(stats)
 
 def get_percentages():
@@ -186,7 +207,7 @@ def get_percentages():
     sorted_brawlers = sorted(brawler_counts.items(), key=lambda x: x[1], reverse=True)[:10]
     msg = "*Глобальная статистика игроков:*\n\n"
     for b_id, count in sorted_brawlers:
-        if count > 0:
+        if count > 0 and b_id in brawlers: # ЗАЩИТА ОТ ОШИБКИ, если старый боец удален из базы
             percent = (count / total) * 100
             name = brawlers[b_id]["name"]
             msg += f"• {name} — {percent:.1f}%\n"
@@ -273,6 +294,7 @@ def handle_callback(call):
             
         prev_msg_id = user_sessions[chat_id]['msg_ids'][new_step]
         send_or_edit_question(chat_id, edit_msg_id=prev_msg_id)
+        bot.answer_callback_query(call.id) # Подтверждаем нажатие
         return
 
     if call.data.startswith("ans_"):
@@ -287,6 +309,7 @@ def handle_callback(call):
         
         user_sessions[chat_id]['step'] += 1
         send_or_edit_question(chat_id)
+        bot.answer_callback_query(call.id) # Подтверждаем нажатие
 
 def show_result(chat_id):
     scores = {key: 0 for key in brawlers.keys()}
@@ -305,7 +328,13 @@ def show_result(chat_id):
     stats_text = get_percentages()
     
     final_text = f"🎉 Твой результат подсчитан!\n\nТы — *{result_data['name']}*!\n\n{stats_text}\nНажми /start, чтобы пройти еще раз."
-    bot.send_photo(chat_id, photo=result_data["photo"], caption=final_text, parse_mode="Markdown")
+    
+    # ЗАЩИТА: Если Телеграм блокирует ссылку на картинку, отправляем без нее!
+    try:
+        bot.send_photo(chat_id, photo=result_data["photo"], caption=final_text, parse_mode="Markdown")
+    except Exception as e:
+        print(f"Ошибка отправки фото: {e}")
+        bot.send_message(chat_id, final_text, parse_mode="Markdown")
 
 # --- ЗАПУСК БОТА И СЕРВЕРА ---
 def run_bot():
