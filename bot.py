@@ -2,14 +2,24 @@ import telebot
 from telebot import types
 import os
 import json
+import threading
+from flask import Flask
 from dotenv import load_dotenv
 
+# Загружаем переменные окружения
 load_dotenv()
 TOKEN = os.getenv('BOT_TOKEN')
 CHANNEL = os.getenv('CHANNEL_USERNAME')
 
 bot = telebot.TeleBot(TOKEN)
 STATS_FILE = 'stats.json'
+
+# --- ФЕЙКОВЫЙ ВЕБ-СЕРВЕР ДЛЯ RENDER ---
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "<h1>Бот работает! Сервер активен.</h1><p>Добавь эту ссылку в UptimeRobot.</p>"
 
 # --- БАЗА ПЕРСОНАЖЕЙ ---
 brawlers = {
@@ -146,7 +156,6 @@ questions = [
 
 # НОВАЯ СИСТЕМА СОХРАНЕНИЯ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
 user_sessions = {}
-# Структура: {chat_id: {'step': 0, 'answers': {}, 'msg_ids': {}}}
 
 def load_stats():
     if not os.path.exists(STATS_FILE):
@@ -203,7 +212,6 @@ def start_quiz(message):
         bot.send_message(chat_id, f"✋ Привет! Чтобы пройти тест, подпишись на канал {CHANNEL}!", reply_markup=markup)
         return
     
-    # Инициализация новой сессии
     user_sessions[chat_id] = {'step': 0, 'answers': {}, 'msg_ids': {}}
     bot.send_message(chat_id, "🎮 Привет! Ответь на 20 вопросов и узнай, кто ты из Brawl Stars! Погнали!")
     send_or_edit_question(chat_id)
@@ -217,22 +225,18 @@ def send_or_edit_question(chat_id, edit_msg_id=None):
     q_data = questions[step]
     markup = types.InlineKeyboardMarkup(row_width=1)
     
-    # Добавляем варианты ответов
     for i, answer in enumerate(q_data["answers"]):
         button = types.InlineKeyboardButton(answer["text"], callback_data=f"ans_{i}")
         markup.add(button)
         
-    # Добавляем кнопку НАЗАД, если это не первый вопрос
     if step > 0:
         markup.add(types.InlineKeyboardButton("🔙 Назад", callback_data="back"))
 
     text = f"Вопрос {step + 1}/{len(questions)}\n\n*{q_data['text']}*"
 
     if edit_msg_id:
-        # Если мы возвращаемся назад, меняем старое сообщение обратно на вопрос с кнопками
         bot.edit_message_text(chat_id=chat_id, message_id=edit_msg_id, text=text, reply_markup=markup, parse_mode="Markdown")
     else:
-        # Отправляем новый вопрос и запоминаем его ID
         msg = bot.send_message(chat_id, text, reply_markup=markup, parse_mode="Markdown")
         user_sessions[chat_id]['msg_ids'][step] = msg.message_id
 
@@ -256,48 +260,35 @@ def handle_callback(call):
 
     step = user_sessions[chat_id]['step']
 
-    # Игнорируем нажатия на кнопки из старых сообщений (защита от багов)
     if call.message.message_id != user_sessions[chat_id]['msg_ids'].get(step):
         bot.answer_callback_query(call.id, "Используй активные кнопки ниже 👇")
         return
 
-    # Если нажали "Назад"
     if call.data == "back":
-        # Удаляем сообщение текущего вопроса
         bot.delete_message(chat_id, call.message.message_id)
-        
-        # Откатываем шаг и удаляем последний ответ
         user_sessions[chat_id]['step'] -= 1
         new_step = user_sessions[chat_id]['step']
         if new_step in user_sessions[chat_id]['answers']:
             del user_sessions[chat_id]['answers'][new_step]
             
-        # Возвращаем кнопки в предыдущее сообщение
         prev_msg_id = user_sessions[chat_id]['msg_ids'][new_step]
         send_or_edit_question(chat_id, edit_msg_id=prev_msg_id)
         return
 
-    # Если выбрали ответ
     if call.data.startswith("ans_"):
         ans_index = int(call.data.split("_")[1])
-        
-        # Сохраняем ответ
         user_sessions[chat_id]['answers'][step] = ans_index
         
-        # Узнаем текст выбранного ответа
         chosen_text = questions[step]["answers"][ans_index]["text"]
         original_text = questions[step]["text"]
         
-        # Убираем кнопки и пишем "Твой ответ: ..." в старом сообщении
         new_text = f"Вопрос {step + 1}/{len(questions)}\n\n*{original_text}*\n\n✅ Твой ответ: _{chosen_text}_"
         bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=new_text, parse_mode="Markdown", reply_markup=None)
         
-        # Переходим к следующему
         user_sessions[chat_id]['step'] += 1
         send_or_edit_question(chat_id)
 
 def show_result(chat_id):
-    # Подсчитываем очки в самом конце на основе сохраненных ответов
     scores = {key: 0 for key in brawlers.keys()}
     answers = user_sessions[chat_id]['answers']
     
@@ -316,6 +307,17 @@ def show_result(chat_id):
     final_text = f"🎉 Твой результат подсчитан!\n\nТы — *{result_data['name']}*!\n\n{stats_text}\nНажми /start, чтобы пройти еще раз."
     bot.send_photo(chat_id, photo=result_data["photo"], caption=final_text, parse_mode="Markdown")
 
-if __name__ == '__main__':
-    print("Бот запущен! Ожидание сообщений...")
+# --- ЗАПУСК БОТА И СЕРВЕРА ---
+def run_bot():
+    print("Бот запущен в фоновом потоке...")
     bot.polling(none_stop=True)
+
+if __name__ == '__main__':
+    # Запускаем телеграм-бота в отдельном потоке
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    
+    # Запускаем Flask-сервер в основном потоке на порту, который выделит Render
+    port = int(os.environ.get('PORT', 10000))
+    print(f"Веб-сервер запущен на порту {port}...")
+    app.run(host='0.0.0.0', port=port)
