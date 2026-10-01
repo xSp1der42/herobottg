@@ -251,9 +251,10 @@ def send_question(chat_id):
         button = types.InlineKeyboardButton(answer["text"], callback_data=f"ans_{i}")
         markup.add(button)
 
+    question_text = q_data['text']
     bot.send_message(
         chat_id, 
-        f"Вопрос {q_index + 1}/{len(questions)}\n\n*{" + q_data['text'] + "}*", 
+        f"Вопрос {q_index + 1}/{len(questions)}\n\n*{question_text}*", 
         reply_markup=markup, 
         parse_mode="Markdown"
     )
